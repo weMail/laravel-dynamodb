@@ -176,31 +176,21 @@ class Model extends BaseModel
      */
     protected function incrementOrDecrement($column, $amount, $extra, $method)
     {
+        $query = $this->newQuery()->key($this->getKey());
+
         if (! $this->exists) {
-            return $this->newQuery()
-                ->key($this->getKey())
-                ->{$method}($column, $amount, $extra);
+            return $query->{$method}($column, $amount, $extra);
         }
 
         if ($this->fireModelEvent('updating') === false) {
             return false;
         }
 
-        return tap($this->newQuery()
-            ->key($this->getKey())
-            ->{$method}($column, $amount, $extra), function () use($column, $amount, $method) {
+        return tap($query->{$method}($column, $amount, $extra), function ($response) {
+            $this->forceFill($response['Attributes']);
 
-            $old = $this->{$column} ?? 0;
-            switch ($method) {
-                case 'increment':
-                    $old += $amount;
-                    break;
-                case 'decrement':
-                    $old -= $amount;
-                    break;
-            }
+            $this->syncChanges();
 
-            $this->setAttribute($column, $old);
             $this->fireModelEvent('updated', false);
         });
     }

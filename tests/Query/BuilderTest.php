@@ -668,6 +668,7 @@ class BuilderTest extends TestCase
                 ]
             ],
             'UpdateExpression' => 'set #1 = :1, #2 = :2 remove #3, #4',
+            'ReturnValues' => 'UPDATED_NEW',
             'ExpressionAttributeNames' => [
                 '#1' => 'LastPostedBy',
                 '#2' => 'Replies',
@@ -683,6 +684,7 @@ class BuilderTest extends TestCase
                 ]
             ]
         ];
+        $processor = 'processSingleItem';
 
         $query = $this->newQuery('Thread')
              ->key([
@@ -697,7 +699,7 @@ class BuilderTest extends TestCase
 
         $this->assertEquals($method, $query['method']);
         $this->assertEquals($params, $query['params']);
-        $this->assertNull($query['processor']);
+        $this->assertEquals($processor, $query['processor']);
     }
 
     /** @test */
@@ -726,7 +728,8 @@ class BuilderTest extends TestCase
                 ':2' => [
                     'S' => 'User A'
                 ]
-            ]
+            ],
+            'ReturnValues' => 'UPDATED_NEW'
         ];
 
         $query = $this->newQuery('Thread')
@@ -737,9 +740,11 @@ class BuilderTest extends TestCase
                 'LastPostedBy' => 'User A'
             ]);
 
+        $processor = 'processSingleItem';
+
         $this->assertEquals($method, $query['method']);
         $this->assertEquals($params, $query['params']);
-        $this->assertNull($query['processor']);
+        $this->assertEquals($processor, $query['processor']);
     }
 
     /** @test */
@@ -768,8 +773,11 @@ class BuilderTest extends TestCase
                 ':2' => [
                     'S' => 'User A'
                 ]
-            ]
+            ],
+            'ReturnValues' => 'UPDATED_NEW'
         ];
+
+        $processor = 'processSingleItem';
 
         $query = $this->newQuery('Thread')
             ->key([
@@ -781,7 +789,7 @@ class BuilderTest extends TestCase
 
         $this->assertEquals($method, $query['method']);
         $this->assertEquals($params, $query['params']);
-        $this->assertNull($query['processor']);
+        $this->assertEquals($processor, $query['processor']);
     }
 
     /** @test */
