@@ -4,14 +4,21 @@ namespace Kitar\Dynamodb\Query;
 
 use Closure;
 use BadMethodCallException;
+use Illuminate\Support\Collection;
+use Kitar\Dynamodb\Collections\ItemCollection;
 use Kitar\Dynamodb\Connection;
-use Kitar\Dynamodb\Query\Grammar;
-use Kitar\Dynamodb\Query\Processor;
-use Kitar\Dynamodb\Query\ExpressionAttributes;
 use Illuminate\Support\Str;
 use Illuminate\Database\Query\Expression;
 use Illuminate\Database\Query\Builder as BaseBuilder;
+use Kitar\Dynamodb\Paginator;
 
+/**
+ * Class Builder
+ * @method Builder keyConditionBetween($key, array $values)
+ * @method Builder keyCondition($key, $operator, $value = null)
+ *
+ * @package Kitar\Dynamodb\Query
+ */
 class Builder extends BaseBuilder
 {
 
@@ -39,7 +46,9 @@ class Builder extends BaseBuilder
      */
     public $updates = [
         'set' => [],
-        'remove' => []
+        'remove' => [],
+        'add' => [],
+        'append' => []
     ];
 
     /**
@@ -68,7 +77,7 @@ class Builder extends BaseBuilder
 
     /**
      * The ExpressionAttributes object.
-     * @var Kitar\Dynamodb\Query\ExpressionAttributes
+     * @var \Kitar\Dynamodb\Query\ExpressionAttributes
      */
     protected $expression_attributes;
 
@@ -86,21 +95,23 @@ class Builder extends BaseBuilder
 
     /**
      * Dedicated query for building FilterExpression.
-     * @var Kitar\Dynamodb\Query\Builder
+     * @var \Kitar\Dynamodb\Query\Builder
      */
     protected $filter_query;
 
     /**
      * Dedicated query for building ConditionExpression.
-     * @var Kitar\Dynamodb\Query\Builder
+     * @var \Kitar\Dynamodb\Query\Builder
      */
     protected $condition_query;
 
     /**
      * Dedicated query for building KeyConditionExpression.
-     * @var Kitar\Dynamodb\Query\Builder
+     * @var \Kitar\Dynamodb\Query\Builder
      */
     protected $key_condition_query;
+
+    protected $rawParams = [];
 
     /**
      * Create a new query builder instance.
@@ -141,6 +152,15 @@ class Builder extends BaseBuilder
     }
 
     /**
+     * @return $this
+     */
+    public function orderDesc()
+    {
+        $this->rawParams['ScanIndexForward'] = false;
+        return $this;
+    }
+
+    /**
      * Set the key.
      *
      * @param array $key
@@ -175,6 +195,19 @@ class Builder extends BaseBuilder
     public function consistentRead($active = true)
     {
         $this->consistent_read = $active;
+
+        return $this;
+    }
+
+    /**
+     * Raw params
+     *
+     * @param array $params
+     * @return $this
+     */
+    public function rawParams($params = [])
+    {
+        $this->rawParams = array_merge($this->rawParams, $params);
 
         return $this;
     }
@@ -271,6 +304,26 @@ class Builder extends BaseBuilder
     }
 
     /**
+     * Append item on list
+     *
+     * @param $item
+     * @return array|Aws\Result|Illuminate\Support\Collection
+     */
+    public function append($item)
+    {
+        $emptyValue = $this->expression_attributes->addValue([]);
+
+        foreach ($item as $name => $value) {
+            $name = $this->expression_attributes->addName($name);
+            $value = $this->expression_attributes->addValue($value);
+
+            $this->updates['set'][] = "{$name} = list_append(if_not_exists({$name}, {$emptyValue}), {$value})";
+        }
+
+        return $this->process('updateItem', 'processSingleItem');
+    }
+
+    /**
      * Update item.
      *
      * @param array $item
@@ -322,9 +375,19 @@ class Builder extends BaseBuilder
      */
     protected function incrementOrDecrement($column, $symbol, $amount = 1, array $extra = [])
     {
+        $mode = 'set';
+        if (Str::startsWith($column, 'add:')) {
+            $column = mb_substr($column, 4);
+            $mode = 'add';
+        }
+
         $name = $this->expression_attributes->addName($column);
         $value = $this->expression_attributes->addValue($amount);
-        $this->updates['set'][] = "{$name} = {$name} {$symbol} {$value}";
+        if ($mode === 'add') {
+            $this->updates[$mode][] = "{$name} {$value}";
+        } else {
+            $this->updates[$mode][] = "{$name} = {$name} {$symbol} {$value}";
+        }
 
         return $this->updateItem($extra);
     }
@@ -332,11 +395,31 @@ class Builder extends BaseBuilder
     /**
      * Query.
      *
-     * @return Illuminate\Support\Collection|array
+     * @return ItemCollection
      */
     public function query()
     {
         return $this->process('clientQuery', 'processMultipleItems');
+    }
+
+    /**
+     * @inheritDoc
+     * @return Paginator
+     */
+    public function paginate($perPage = 25, $columns = ['*'], $pageName = 'next-page', $page = null)
+    {
+        $this->limit($perPage);
+
+        $cursor = Paginator::resolveCurrentPage($pageName);
+
+        if (is_array($cursor)) {
+            $this->exclusiveStartKey($cursor);
+        }
+
+        /** @var ItemCollection $items */
+        $items = $this->process('clientQuery', 'processMultipleItems');
+
+        return new Paginator($items, $items->getLastEvaluatedKey(true), $items->itemsCount(), $perPage);
     }
 
     /**
@@ -528,6 +611,10 @@ class Builder extends BaseBuilder
             $this->grammar->compileExpressionAttributes($this->expression_attributes)
         );
 
+        if (!empty($this->rawParams)) {
+            $params = array_merge($params, $this->rawParams);
+        }
+
         // Dry run.
         if ($this->dry_run) {
             return [
@@ -546,5 +633,125 @@ class Builder extends BaseBuilder
         } else {
             return $response;
         }
+    }
+
+    /**
+     * Execute batch get items operation
+     *
+     * @param array $operations
+     * @return array
+     */
+    public function batchGetItem(array $operations)
+    {
+        $params = [];
+        $queryMethod = 'batchGetItem';
+
+        foreach ($operations as $operation) {
+            /** @var Builder $operation */
+            if (! array_key_exists($operation->from, $params)) {
+                $params[$operation->from] = [];
+            }
+
+            if ($this->key instanceof Collection) {
+                $this->key = $this->key->toArray();
+            }
+
+            if (! is_array(reset($operation->key))) {
+                $operation->key = [$operation->key];
+            }
+
+            $params[$operation->from] = array_merge_recursive(
+                $params[$operation->from],
+                $operation->grammar->compileConsistentRead($operation->consistent_read),
+                $operation->grammar->compileKeys($operation->key)
+            );
+        }
+
+        $params = [
+            'RequestItems' => $params
+        ];
+
+        // Dry run.
+        if ($this->dry_run) {
+            return [
+                'method' => $queryMethod,
+                'params' => $params,
+                'processor' => null
+            ];
+        }
+
+        return $this->processor->processBatchGetItem(
+            $this->connection->$queryMethod($params),
+        );
+    }
+
+    /**
+     * Batch write
+     *
+     * @param array $operations
+     * @return array
+     */
+    public function batchWriteItem(array $operations)
+    {
+        $params = [];
+        $queryMethod = 'batchWriteItem';
+
+        foreach ($operations as $operation) {
+            if (! ($operation instanceof Batch)) {
+                continue;
+            }
+
+            if (! array_key_exists($operation->builder->from, $params)) {
+                $params[$operation->builder->from] = [];
+            }
+
+            foreach ($operation->process() as $request) {
+                $params[$operation->builder->from] = array_merge(
+                    $params[$operation->builder->from],
+                    $request
+                );
+            }
+        }
+
+        $params = [
+            'RequestItems' => $params
+        ];
+
+        // Dry run.
+        if ($this->dry_run) {
+            return [
+                'method' => $queryMethod,
+                'params' => $params,
+                'processor' => null
+            ];
+        }
+
+        return $this->processor->processBatchWriteItem(
+            $this->connection->$queryMethod($params)
+        );
+    }
+
+    /**
+     * Put items in batch operation
+     *
+     * @param $item
+     * @return Batch
+     */
+    public function putItemBatch($item)
+    {
+        return (new Batch($this))
+            ->putItemBatch($item);
+    }
+
+    /**
+     *  Delete items in batch operation
+     *
+     * @param $key
+     * @return Batch
+     */
+    public function deleteItemBatch($key)
+    {
+        return (new Batch($this))
+            ->deleteItemBatch($key);
     }
 }

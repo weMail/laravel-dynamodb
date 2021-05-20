@@ -31,9 +31,16 @@ class Connection extends BaseConnection
      */
     public function table($table, $as = null)
     {
-        $query = new Query\Builder($this, $this->getQueryGrammar(), $this->getPostProcessor());
+        return $this->query()->from($table, $as);
+    }
 
-        return $query->from($table, $as);
+    /**
+     * @inheritdoc
+     * @return Query\Builder
+     */
+    public function query()
+    {
+        return new Query\Builder($this, $this->getQueryGrammar(), $this->getPostProcessor());
     }
 
     /**
@@ -76,7 +83,8 @@ class Connection extends BaseConnection
             'credentials' => [
                 'key' => $config['access_key'] ?? '',
                 'secret' => $config['secret_key'] ?? ''
-            ]
+            ],
+            'endpoint' => 'http://localhost:8000'
         ]);
 
         return $sdk->createDynamoDb();

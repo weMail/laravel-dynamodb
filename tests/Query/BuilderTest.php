@@ -33,9 +33,15 @@ class BuilderTest extends TestCase
         m::close();
     }
 
-    protected function newQuery($table_name)
+    protected function newQuery($table_name = null)
     {
-        return $this->connection->table($table_name)->dryRun();
+        $query = $this->connection->query()->dryRun();
+
+        if (is_null($table_name)) {
+            return $query;
+        }
+
+        return $query->from($table_name);
     }
 
     /** @test */
@@ -882,6 +888,139 @@ class BuilderTest extends TestCase
         $query = $this->newQuery('ProductCatalog')
                       ->keyCondition('Id', '=', 101)
                       ->query();
+
+        $this->assertEquals($method, $query['method']);
+        $this->assertEquals($params, $query['params']);
+        $this->assertEquals($processor, $query['processor']);
+    }
+
+    /**
+     * @test
+     */
+    public function it_can_process_batch_read()
+    {
+        $table = 'Thread';
+        $method = 'batchGetItem';
+        $processor = null;
+
+        $params = [
+            'RequestItems' => [
+                $table => [
+                    'Keys' => [
+                        [
+                            'PK' => ['S' => 'Site'],
+                            'SK' => ['S' => 'Demo']
+                        ],
+                        [
+                            'PK' => ['S' => 'Site'],
+                            'SK' => ['S' => 'Demo 2']
+                        ]
+                    ]
+                ]
+            ]
+        ];
+
+        $query = $this->newQuery()
+            ->batchGetItem([
+                $this->newQuery($table)
+                ->key([
+                    [
+                        'PK' => 'Site',
+                        'SK' => 'Demo'
+                    ],
+                    [
+                        'PK' => 'Site',
+                        'SK' => 'Demo 2'
+                    ]
+                ]),
+            ]);
+
+        $this->assertEquals($method, $query['method']);
+        $this->assertEquals($params, $query['params']);
+        $this->assertEquals($processor, $query['processor']);
+    }
+
+    /**
+     * @test
+     */
+    public function it_can_process_batch_write()
+    {
+        $table = 'Thread';
+        $table2 = 'Thread2';
+        $method = 'batchWriteItem';
+        $processor = null;
+
+        $params = [
+            'RequestItems' => [
+                $table => [
+                    [
+                        'DeleteRequest' => [
+                            'Key' => [
+                                'PK' => ['S' => 'Site'],
+                                'SK' => ['S' => 'Demo']
+                            ]
+                        ]
+                    ],
+                    [
+                        'DeleteRequest' => [
+                            'Key' => [
+                                'PK' => ['S' => 'Site'],
+                                'SK' => ['S' => 'Demo 2']
+                            ]
+                        ]
+                    ],
+                    [
+                        'PutRequest' => [
+                            'Item' => [
+                                'PK' => ['S' => 'Site'],
+                                'SK' => ['S' => 'Demo 3'],
+                                'name' => ['S' => 'Site']
+                            ]
+                        ]
+                    ]
+                ],
+                $table2 => [
+                    [
+                        'DeleteRequest' => [
+                            'Key' => [
+                                'PK' => ['S' => 'Site'],
+                                'SK' => ['S' => 'Demo']
+                            ]
+                        ]
+                    ],
+                    [
+                        'PutRequest' => [
+                            'Item' => [
+                                'PK' => ['S' => 'Site'],
+                                'SK' => ['S' => 'Demo 3'],
+                                'name' => ['S' => 'Site']
+                            ]
+                        ]
+                    ]
+                ]
+            ]
+        ];
+
+        $query = $this->newQuery()
+            ->batchWriteItem([
+                $this->newQuery($table)
+                    ->deleteItemBatch([
+                        ['PK' => 'Site', 'SK' => 'Demo'],
+                    ])->deleteItemBatch(['PK' => 'Site', 'SK' => 'Demo 2'])
+                    ->putItemBatch([
+                        'PK' => 'Site',
+                        'SK' => 'Demo 3',
+                        'name' => 'Site'
+                    ]),
+                $this->newQuery($table2)
+                    ->deleteItemBatch([
+                        ['PK' => 'Site', 'SK' => 'Demo'],
+                    ])->putItemBatch([
+                        'PK' => 'Site',
+                        'SK' => 'Demo 3',
+                        'name' => 'Site'
+                    ])
+            ]);
 
         $this->assertEquals($method, $query['method']);
         $this->assertEquals($params, $query['params']);

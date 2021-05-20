@@ -92,6 +92,25 @@ class Grammar extends BaseGrammer
     }
 
     /**
+     * Compile multiple key attributes
+     *
+     * @param array $keys
+     * @return array
+     */
+    public function compileKeys($keys)
+    {
+        if (empty($keys)) {
+            return [];
+        }
+
+        return [
+            'Keys' => array_map(function ($key) {
+                return $this->marshaler->marshalItem($key);
+            }, $keys)
+        ];
+    }
+
+    /**
      * Compile the Item attribute.
      *
      * @param array $key
@@ -119,6 +138,10 @@ class Grammar extends BaseGrammer
 
         if (! empty($updates['set'])) {
             $expressions[] = 'set ' . implode(', ', $updates['set']);
+        }
+
+        if (! empty($updates['add'])) {
+            $expressions[] = 'add ' . implode(', ', $updates['add']);
         }
 
         if (! empty($updates['remove'])) {

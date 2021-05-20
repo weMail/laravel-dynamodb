@@ -5,6 +5,11 @@ namespace Kitar\Dynamodb\Query;
 use Aws\Result;
 use Aws\DynamoDb\Marshaler;
 use Illuminate\Database\Query\Processors\Processor as BaseProcessor;
+use Illuminate\Support\Collection;
+use Kitar\Dynamodb\Collections\BatchGetItemCollection;
+use Kitar\Dynamodb\Collections\ItemCollection;
+use Kitar\Dynamodb\Collections\UnprocessedItemCollection;
+use Kitar\Dynamodb\Paginator;
 
 class Processor extends BaseProcessor
 {
@@ -64,7 +69,7 @@ class Processor extends BaseProcessor
             return $response;
         }
 
-        $items = collect();
+        $items = new ItemCollection();
 
         foreach ($response['Items'] as $item) {
             $item = (new $modelClass)->newFromBuilder($item);
@@ -73,9 +78,55 @@ class Processor extends BaseProcessor
 
         unset($response['Items']);
 
-        return $items->map(function ($item) use ($response) {
-            $item->setMeta($response);
-            return $item;
-        });
+        return $items->setMetaData($response);
+    }
+
+    /**
+     * Process batch item get response
+     *
+     * @param Result $result
+     * @return BatchGetItemCollection
+     */
+    public function processBatchGetItem(Result $result)
+    {
+        $data = $result->toArray();
+        $tempItems = [];
+
+        foreach ($data['Responses'] as $table => $items) {
+            $tempItems[$table] = [];
+
+            foreach ($items as $item) {
+                $tempItems[$table][] = $this->marshaler->unmarshalItem($item);
+            }
+
+            $tempItems[$table] = new Collection($tempItems[$table]);
+        }
+
+        $data['Responses'] = $tempItems;
+
+        return new BatchGetItemCollection($data);
+    }
+
+    /**
+     * Process batch write response
+     *
+     * @param Result $result
+     * @return UnprocessedItemCollection
+     */
+    public function processBatchWriteItem(Result $result)
+    {
+        $data = $result->toArray();
+
+        $tempItems = [];
+
+        foreach ($data['UnprocessedItems'] as $table => $items) {
+            foreach ($items as $item) {
+                $tempItems[$table][] = $this->marshaler->unmarshalItem($item);
+            }
+        }
+
+        $data['UnprocessedItems'] = $tempItems;
+
+        return new UnprocessedItemCollection($data);
     }
 }

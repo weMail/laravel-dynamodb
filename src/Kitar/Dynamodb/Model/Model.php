@@ -3,8 +3,19 @@
 namespace Kitar\Dynamodb\Model;
 
 use Illuminate\Database\Eloquent\Model as BaseModel;
-use Kitar\Dynamodb\Model\KeyMissingException;
+use Kitar\Dynamodb\Collections\ItemCollection;
+use Kitar\Dynamodb\Query\Batch;
+use Kitar\Dynamodb\Query\Builder;
 
+/**
+ * Class Model
+ * @method static Batch putItemBatch(array|ItemCollection $item)
+ * @method static Batch deleteItemBatch(array|ItemCollection $key)
+ * @method static Builder keyCondition($key, $operator, $value = null)
+ * @method static Builder key($key)
+ *
+ * @package Kitar\Dynamodb\Model
+ */
 class Model extends BaseModel
 {
     /**
@@ -350,6 +361,8 @@ class Model extends BaseModel
             "keyCondition",
             "keyConditionIn",
             "keyConditionBetween",
+            'putItemBatch',
+            'deleteItemBatch'
         ];
 
         if (in_array($method, ['increment', 'decrement'])) {
