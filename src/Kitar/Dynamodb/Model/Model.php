@@ -3,6 +3,7 @@
 namespace Kitar\Dynamodb\Model;
 
 use Illuminate\Database\Eloquent\Model as BaseModel;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kitar\Dynamodb\Collections\ItemCollection;
 use Kitar\Dynamodb\Query\Batch;
 use Kitar\Dynamodb\Query\Builder;
@@ -127,6 +128,22 @@ class Model extends BaseModel
         }
 
         return static::getItem($key);
+    }
+
+    /**
+     * Find a model by its primary (partition) key or key array.
+     *
+     * @param $key
+     * @return Model
+     */
+    public static function findOrFail($key)
+    {
+        $model = static::find($key);
+        if (is_null($model)) {
+            throw (new ModelNotFoundException())->setModel(static::class);
+        }
+
+        return $model;
     }
 
     /**

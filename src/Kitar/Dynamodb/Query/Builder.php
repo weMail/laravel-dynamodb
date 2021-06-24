@@ -393,6 +393,30 @@ class Builder extends BaseBuilder
     }
 
     /**
+     * Add column value
+     *
+     * @param $column
+     * @param int $value
+     * @return array|Aws\Result|Illuminate\Support\Collection
+     */
+    public function add($column, $value = 0)
+    {
+        if (is_array($column)) {
+            foreach ($column as $columnName => $value) {
+                $name = $this->expression_attributes->addName($columnName);
+                $value = $this->expression_attributes->addValue($value);
+                $this->updates['add'][] = sprintf('%s %s', $name, $value);
+            }
+        } else {
+            $name = $this->expression_attributes->addName($column);
+            $value = $this->expression_attributes->addValue($value);
+            $this->updates['add'][] = sprintf('%s %s', $name, $value);
+        }
+
+        return $this->process('updateItem', 'processSingleItem');
+    }
+
+    /**
      * Query.
      *
      * @return ItemCollection

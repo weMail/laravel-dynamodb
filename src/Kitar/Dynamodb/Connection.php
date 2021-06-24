@@ -78,7 +78,7 @@ class Connection extends BaseConnection
     protected function createClient(array $config)
     {
         $sdk = new AwsSdk([
-            'region' => $config['region'] ?? 'us-east-1',
+            'region' => $config['region'] ?? '',
             'version' => $config['version'] ?? 'latest',
             'credentials' => [
                 'key' => $config['access_key'] ?? '',
