@@ -17,6 +17,7 @@ class Connection extends BaseConnection
     public function __construct($config)
     {
         $this->client = $this->createClient($config);
+        $this->tablePrefix = $config['prefix'] ?? '';
 
         $this->useDefaultPostProcessor();
 
@@ -84,7 +85,7 @@ class Connection extends BaseConnection
                 'key' => $config['access_key'] ?? '',
                 'secret' => $config['secret_key'] ?? ''
             ],
-            'endpoint' => 'http://localhost:8000'
+            'endpoint' => $config['endpoint'] ?? null
         ]);
 
         return $sdk->createDynamoDb();
@@ -113,7 +114,7 @@ class Connection extends BaseConnection
      */
     protected function getDefaultQueryGrammar()
     {
-        return new Query\Grammar();
+        return $this->withTablePrefix(new Query\Grammar());
     }
 
     /**
