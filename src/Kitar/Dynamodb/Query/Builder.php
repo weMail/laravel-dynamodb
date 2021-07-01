@@ -672,8 +672,10 @@ class Builder extends BaseBuilder
 
         foreach ($operations as $operation) {
             /** @var Builder $operation */
-            if (! array_key_exists($operation->from, $params)) {
-                $params[$operation->from] = [];
+            $table = $this->grammar->getTablePrefix() . $operation->from;
+
+            if (! array_key_exists(($table), $params)) {
+                $params[$table] = [];
             }
 
             if ($this->key instanceof Collection) {
@@ -684,8 +686,8 @@ class Builder extends BaseBuilder
                 $operation->key = [$operation->key];
             }
 
-            $params[$operation->from] = array_merge_recursive(
-                $params[$operation->from],
+            $params[$table] = array_merge_recursive(
+                $params[$table],
                 $operation->grammar->compileConsistentRead($operation->consistent_read),
                 $operation->grammar->compileKeys($operation->key)
             );
@@ -725,13 +727,15 @@ class Builder extends BaseBuilder
                 continue;
             }
 
-            if (! array_key_exists($operation->builder->from, $params)) {
-                $params[$operation->builder->from] = [];
+            $table = $this->grammar->getTablePrefix() . $operation->builder->from;
+
+            if (! array_key_exists($table, $params)) {
+                $params[$table] = [];
             }
 
             foreach ($operation->process() as $request) {
-                $params[$operation->builder->from] = array_merge(
-                    $params[$operation->builder->from],
+                $params[$table] = array_merge(
+                    $params[$table],
                     $request
                 );
             }
