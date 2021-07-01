@@ -91,7 +91,7 @@ class Processor extends BaseProcessor
     {
         $data = $result->toArray();
         $tempItems = [];
-        $prefix = config('database.dynamodb.prefix');
+        $prefix = config('database.connections.dynamodb.prefix');
 
         foreach ($data['Responses'] as $table => $items) {
             $table = str_replace($prefix, '', $table);
@@ -120,7 +120,7 @@ class Processor extends BaseProcessor
         $data = $result->toArray();
 
         $tempItems = [];
-        $prefix = config('database.dynamodb.prefix');
+        $prefix = config('database.connections.dynamodb.prefix');
 
         foreach ($data['UnprocessedItems'] as $table => $items) {
             $table = str_replace($prefix, '', $table);
