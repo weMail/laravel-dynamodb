@@ -443,7 +443,9 @@ class Builder extends BaseBuilder
         /** @var ItemCollection $items */
         $items = $this->process('clientQuery', 'processMultipleItems');
 
-        return new Paginator($items, $items->getLastEvaluatedKey(true), $items->itemsCount(), $perPage);
+        return new Paginator($items, $items->getLastEvaluatedKey(true), $items->itemsCount(), $perPage, [
+            'scanned' => $items->scannedCount()
+        ]);
     }
 
     /**

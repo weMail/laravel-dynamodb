@@ -28,7 +28,7 @@ class Paginator extends AbstractPaginator implements JsonSerializable, Arrayable
      */
     protected $itemsCount;
 
-    public function __construct($items = [], $cursor = null, $itemsCount = 0, $perPage = 25)
+    public function __construct($items = [], $cursor = null, $itemsCount = 0, $perPage = 25, $options = [])
     {
         $this->items = $items;
 
@@ -37,6 +37,7 @@ class Paginator extends AbstractPaginator implements JsonSerializable, Arrayable
         }
         $this->itemsCount = $itemsCount;
         $this->perPage = $perPage;
+        $this->options += $options;
     }
 
     public static function resolveCurrentPage($pageName = 'next-page', $default = 1)
