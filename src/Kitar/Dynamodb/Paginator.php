@@ -28,6 +28,11 @@ class Paginator extends AbstractPaginator implements JsonSerializable, Arrayable
      */
     protected $itemsCount;
 
+    /**
+     * @inheritdoc
+     */
+    protected $options = [];
+
     public function __construct($items = [], $cursor = null, $itemsCount = 0, $perPage = 25, $options = [])
     {
         $this->items = $items;
