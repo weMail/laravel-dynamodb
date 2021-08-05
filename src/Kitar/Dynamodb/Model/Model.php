@@ -224,6 +224,34 @@ class Model extends BaseModel
     }
 
     /**
+     * Increment column using add
+     *
+     * @param $column
+     * @param int $value
+     * @return array|\Aws\Result|false|\Illuminate\Support\HigherOrderTapProxy|\Kitar\Dynamodb\Query\Illuminate\Support\Collection|mixed
+     */
+    public function add($column, int $value = 0)
+    {
+        $query = $this->newQuery()->key($this->getKey());
+
+        if (! $this->exists) {
+            return $query->add($column, $value);
+        }
+
+        if ($this->fireModelEvent('updating') === false) {
+            return false;
+        }
+
+        return tap($query->add($column, $value), function ($response) {
+            $this->forceFill($response['Attributes']);
+
+            $this->syncChanges();
+
+            $this->fireModelEvent('updated', false);
+        });
+    }
+
+    /**
      * Perform a model update operation.
      *
      * @param  \Kitar\Dynamodb\Query\Builder  $query

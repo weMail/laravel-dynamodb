@@ -4,6 +4,7 @@ namespace Kitar\Dynamodb\Query;
 
 use Closure;
 use BadMethodCallException;
+use GuzzleHttp\Promise\Promise;
 use Illuminate\Support\Collection;
 use Kitar\Dynamodb\Collections\ItemCollection;
 use Kitar\Dynamodb\Connection;
@@ -331,6 +332,29 @@ class Builder extends BaseBuilder
      */
     public function updateItem($item)
     {
+        return $this->updateQuery($item)
+            ->process('updateItem', 'processSingleItem');
+    }
+
+    /**
+     *  Update item asynchronously
+     *
+     * @param $item
+     * @return Promise
+     */
+    public function updateItemAsync($item)
+    {
+        return $this->updateQuery($item)->process('updateItemAsync', null);
+    }
+
+    /**
+     * Update query
+     *
+     * @param $item array
+     * @return $this
+     */
+    protected function updateQuery($item)
+    {
         foreach ($item as $name => $value) {
             $name = $this->expression_attributes->addName($name);
 
@@ -338,14 +362,14 @@ class Builder extends BaseBuilder
             if ($value === null) {
                 $this->updates['remove'][] = $name;
 
-            // If value set, it will pass to SET actions.
+                // If value set, it will pass to SET actions.
             } else {
                 $value = $this->expression_attributes->addValue($value);
                 $this->updates['set'][] = "{$name} = {$value}";
             }
         }
 
-        return $this->process('updateItem', 'processSingleItem');
+        return $this;
     }
 
     /**
@@ -397,9 +421,35 @@ class Builder extends BaseBuilder
      *
      * @param $column
      * @param int $value
-     * @return array|Aws\Result|Illuminate\Support\Collection
+     * @return array|\Aws\Result|Illuminate\Support\Collection
      */
-    public function add($column, $value = 0)
+    public function add($column, int $value = 0)
+    {
+        return $this->handleAdd($column, $value)
+            ->process('updateItem', 'processSingleItem');
+    }
+
+    /**
+     * Add column value on async mode
+     *
+     * @param $column
+     * @param int $value
+     * @return Promise
+     */
+    public function addAsync($column, int $value = 0)
+    {
+        return $this->handleAdd($column, $value)
+            ->process('updateItemAsync', null);
+    }
+
+    /**
+     * Handle add operation
+     *
+     * @param $column
+     * @param int $value
+     * @return $this
+     */
+    protected function handleAdd($column, int $value = 0)
     {
         if (is_array($column)) {
             foreach ($column as $columnName => $value) {
@@ -413,7 +463,7 @@ class Builder extends BaseBuilder
             $this->updates['add'][] = sprintf('%s %s', $name, $value);
         }
 
-        return $this->process('updateItem', 'processSingleItem');
+        return $this;
     }
 
     /**
@@ -714,15 +764,53 @@ class Builder extends BaseBuilder
     }
 
     /**
-     * Batch write
+     * Batch write item
      *
      * @param array $operations
      * @return array
      */
     public function batchWriteItem(array $operations)
     {
-        $params = [];
         $queryMethod = 'batchWriteItem';
+
+        $params = $this->handleBatchWriteItem($operations);
+
+        // Dry run.
+        if ($this->dry_run) {
+            return [
+                'method' => $queryMethod,
+                'params' => $params,
+                'processor' => null
+            ];
+        }
+
+        return $this->processor->processBatchWriteItem(
+            $this->connection->$queryMethod($params)
+        );
+    }
+
+    /**
+     * Batch write item async
+     *
+     * @param array $operations
+     * @return Promise
+     */
+    public function batchWriteItemAsync(array $operations)
+    {
+        $params = $this->handleBatchWriteItem($operations);
+
+        return $this->connection->batchWriteItemAsync($params);
+    }
+
+    /**
+     * Handle batch write item
+     *
+     * @param array $operations
+     * @return array|array[]
+     */
+    protected function handleBatchWriteItem(array $operations)
+    {
+        $params = [];
 
         foreach ($operations as $operation) {
             if (! ($operation instanceof Batch)) {
@@ -743,22 +831,9 @@ class Builder extends BaseBuilder
             }
         }
 
-        $params = [
+         return [
             'RequestItems' => $params
         ];
-
-        // Dry run.
-        if ($this->dry_run) {
-            return [
-                'method' => $queryMethod,
-                'params' => $params,
-                'processor' => null
-            ];
-        }
-
-        return $this->processor->processBatchWriteItem(
-            $this->connection->$queryMethod($params)
-        );
     }
 
     /**
