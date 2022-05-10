@@ -477,6 +477,38 @@ class Builder extends BaseBuilder
     }
 
     /**
+     * Chunk the results of the query
+     *
+     * @param int $count
+     * @param callable $callback
+     * @return bool
+     */
+    public function chunk($count, callable $callback)
+    {
+        $this->limit($count);
+
+        $page = 1;
+
+        do {
+            $result = $this->query();
+
+            if (call_user_func_array($callback, [$result, $page]) === false) {
+                return false;
+            }
+
+            if ($hasNextItems = $result->hasNextPage()) {
+                $this->exclusiveStartKey($result->getLastEvaluatedKey(true));
+            }
+
+            unset($result);
+            $page++;
+
+        } while ($hasNextItems);
+
+        return true;
+    }
+
+    /**
      * @inheritDoc
      * @return Paginator
      */

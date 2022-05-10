@@ -1,6 +1,7 @@
 <?php
 namespace Kitar\Dynamodb\BatchOperations;
 
+use Illuminate\Support\Collection;
 use Kitar\Dynamodb\Contracts\Operation;
 use Kitar\Dynamodb\Query\Builder;
 
@@ -12,7 +13,7 @@ class Put implements Operation
     protected $builder;
 
     /**
-     * @var array $item
+     * @var array|Collection $item
      */
     protected $item;
 
@@ -29,6 +30,10 @@ class Put implements Operation
      */
     public function process()
     {
+        if ($this->item instanceof Collection) {
+            $this->item = $this->item->toArray();
+        }
+
         if (! is_array(reset($this->item)) ) {
             $this->item = [$this->item];
         }

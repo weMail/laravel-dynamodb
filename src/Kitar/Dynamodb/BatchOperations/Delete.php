@@ -9,7 +9,7 @@ use Kitar\Dynamodb\Query\Builder;
 class Delete implements Operation
 {
     /**
-     * @var array $key
+     * @var array|Collection $key
      */
     protected $key;
 

@@ -111,6 +111,5 @@ class ProcessorTest extends TestCase
             'Category' => 'Amazon Web Services',
             'Name' => 'Amazon S3'
         ], $item->toArray());
-        $this->assertEquals(200, $item->meta()['@metadata']['statusCode']);
     }
 }
