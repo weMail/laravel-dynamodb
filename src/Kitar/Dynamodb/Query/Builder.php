@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 use Illuminate\Database\Query\Expression;
 use Illuminate\Database\Query\Builder as BaseBuilder;
 use Kitar\Dynamodb\Paginator;
+use Traversable;
 
 /**
  * Class Builder
@@ -666,7 +667,7 @@ class Builder extends BaseBuilder
     /**
      * @inheritdoc
      */
-    public function whereBetween($column, array $values, $boolean = 'and', $not = false)
+    public function whereBetween($column, iterable $values, $boolean = 'and', $not = false)
     {
         $column = $this->expression_attributes->addName($column);
 
