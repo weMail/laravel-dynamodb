@@ -12,7 +12,6 @@ use Illuminate\Support\Str;
 use Illuminate\Database\Query\Expression;
 use Illuminate\Database\Query\Builder as BaseBuilder;
 use Kitar\Dynamodb\Paginator;
-use Traversable;
 
 /**
  * Class Builder
