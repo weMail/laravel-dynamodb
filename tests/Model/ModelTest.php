@@ -564,7 +564,7 @@ class ModelTest extends TestCase
         ]);
         $this->setConnectionResolver($connection);
 
-        $result = UserA::putItem([
+        UserA::putItem([
             'partition' => 'p'
         ]);
     }
