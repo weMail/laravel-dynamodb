@@ -1070,13 +1070,19 @@ class BuilderTest extends TestCase
     public function it_can_process_process()
     {
         $connection = m::mock(Connection::class);
+
+        $expectedParams = ['TableName' => 'Forum'];
+        $sampleResult = new Result(['Items' => []]);
+
         $connection->shouldReceive('scan')
                    ->with(['TableName' => 'Forum'])
                    ->andReturn(new Result(['Items' => []]));
 
         $query = new Builder($connection, new Grammar, new Processor);
 
-        $query->from('Forum')->scan();
+        $result = $query->from('Forum')->scan();
+
+        $this->assertIsArray($result);
     }
 
     /** @test */
@@ -1098,10 +1104,12 @@ class BuilderTest extends TestCase
 
         $query = new Builder($connection, new Grammar, new Processor);
 
-        $query->from('Thread')->putItem([
+        $result = $query->from('Thread')->putItem([
             'ForumName' => 'Laravel',
             'Subject' => 'Laravel Thread 1'
         ]);
+
+        $this->assertInstanceOf(Result::class, $result);
     }
 
     /** @test */

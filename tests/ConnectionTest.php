@@ -73,13 +73,16 @@ class ConnectionTest extends TestCase
         $client = m::mock(DynamoDbClient::class);
         $client->shouldReceive('query')->with([
             'TableName' => 'User'
-        ]);
+        ])->andReturn('mocked_result');
 
         $connection = new Connection([]);
         $connection->setClient($client);
-        $connection->clientQuery([
+        $result = $connection->clientQuery([
             'TableName' => 'User'
         ]);
+
+        $this->assertNotNull($result);
+        $this->assertEquals('mocked_result', $result);
     }
 
     /** @test */
@@ -88,12 +91,13 @@ class ConnectionTest extends TestCase
         $client = m::mock(DynamoDbClient::class);
         $client->shouldReceive('getItem')->with([
             'TableName' => 'User'
-        ]);
+        ])->andReturn('mocked_result');
 
         $connection = new Connection([]);
         $connection->setClient($client);
-        $connection->getItem([
+        $result = $connection->getItem([
             'TableName' => 'User'
         ]);
+        $this->assertEquals('mocked_result', $result);
     }
 }

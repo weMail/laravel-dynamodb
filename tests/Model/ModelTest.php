@@ -3,6 +3,7 @@
 namespace Kitar\Dynamodb\Tests\Model;
 
 use Aws\Result;
+use Illuminate\Support\Collection;
 use PHPUnit\Framework\TestCase;
 use Mockery as m;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
@@ -403,7 +404,9 @@ class ModelTest extends TestCase
         $connection->shouldReceive('scan')->with($params)->andReturn($return);
         $this->setConnectionResolver($connection);
 
-        UserA::all();
+        $result = UserA::all();
+
+        $this->assertInstanceOf(Collection::class, $result);
     }
 
     /** @test */
@@ -428,7 +431,9 @@ class ModelTest extends TestCase
 
         $user = new UserA(['partition' => 'p']);
         $user->timestamps = false;
-        $user->save();
+        $result = $user->save();
+
+        $this->assertTrue($result);
     }
 
     /** @test */
@@ -473,7 +478,9 @@ class ModelTest extends TestCase
         $user = (new UserA)->newFromBuilder(['partition' => 'p']);
         $user->timestamps = false;
         $user->name = 'foo';
-        $user->save();
+        $result = $user->save();
+
+        $this->assertTrue($result);
     }
 
     /** @test */
@@ -508,7 +515,9 @@ class ModelTest extends TestCase
 
         $user = (new UserA)->newFromBuilder(['partition' => 'p']);
 
-        $user->delete();
+        $result = $user->delete();
+
+        $this->assertTrue($result);
     }
 
     /** @test */
